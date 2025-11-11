@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Task Chrono</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <style>
+        /* کدهای CSS سفارشی برای تایم‌لاین انشعابی
+           (بدون تغییر نسبت به نسخه قبلی)
+        */
+        
+        /* کانتینر اصلی تایم‌لاین */
+        .timeline-container {
+            position: relative;
+            padding: 2rem 0;
+        }
+
+        /* خط عمودی مرکزی (فقط در دسکتاپ) */
+        @media (min-width: 640px) {
+            .timeline-container::before {
+                content: '';
+                position: absolute;
+                top: 0;
+                bottom: 0;
+                left: 50%;
+                width: 3px;
+                background-color: #374151; /* bg-gray-700 */
+                transform: translateX(-50%);
+                z-index: 0;
+            }
+        }
+
+        /* هر آیتم در تایم‌لاین */
+        .timeline-item {
+            position: relative;
+            margin-bottom: 2rem;
+            width: 100%;
+        }
+
+        /* استایل دسکتاپ (چپ و راست) */
+        @media (min-width: 640px) {
+            .timeline-item {
+                width: 50%;
+                padding-left: 2rem;
+                padding-right: 2rem;
+            }
+            
+            /* آیتم‌های سمت چپ */
+            .timeline-item:nth-child(odd) {
+                left: 0;
+                padding-left: 0;
+                padding-right: 2.5rem; /* فاصله از خط مرکزی */
+                text-align: right;
+            }
+            
+            /* آیتم‌های سمت راست */
+            .timeline-item:nth-child(even) {
+                left: 50%;
+                padding-right: 0;
+                padding-left: 2.5rem; /* فاصله از خط مرکزی */
+            }
+
+            /* نقطه روی خط مرکزی برای هر آیتم */
+            .timeline-item::after {
+                content: '';
+                position: absolute;
+                top: 0.5rem;
+                width: 16px;
+                height: 16px;
+                background-color: #3b82f6; /* bg-blue-500 */
+                border: 3px solid #1f2937; /* bg-gray-800 */
+                border-radius: 50%;
+                z-index: 10;
+            }
+
+            /* نقطه برای آیتم‌های چپ */
+            .timeline-item:nth-child(odd)::after {
+                right: -8px; /* نصف عرض نقطه */
+            }
+            
+            /* نقطه برای آیتم‌های راست */
+            .timeline-item:nth-child(even)::after {
+                left: -8px; /* نصف عرض نقطه */
+            }
+        }
+        
+        /* استایل موبایل (همه در یک سمت) */
+        @media (max-width: 639px) {
+            .timeline-item {
+                padding-left: 2.5rem; /* فاصله برای خط و نقطه */
+                margin-bottom: 1.5rem;
+            }
+            
+            /* خط عمودی در موبایل */
+            .timeline-container::before {
+                content: '';
+                position: absolute;
+                top: 0;
+                bottom: 0;
+                right: 8px; /* موقعیت خط */
+                width: 3px;
+                background-color: #374151; /* bg-gray-700 */
+                z-index: 0;
+            }
+
+            /* نقطه در موبایل */
+            .timeline-item::after {
+                content: '';
+                position: absolute;
+                top: 0.5rem;
+                right: 0;
+                width: 16px;
+                height: 16px;
+                background-color: #3b82f6; /* bg-blue-500 */
+                border: 3px solid #1f2937; /* bg-gray-800 */
+                border-radius: 50%;
+                z-index: 10;
+            }
+        }
+
+        /* کارت محتوای هر آیتم */
+        .timeline-content {
+            background-color: #374151; /* bg-gray-700 */
+            border: 1px solid #4b5563; /* bg-gray-600 */
+            border-radius: 0.5rem; /* rounded-lg */
+            padding: 1rem;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+            transition: all 0.3s ease;
+        }
+        
+        .timeline-content:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+        }
+        
+        /* جداکننده تاریخ */
+        .date-separator {
+            text-align: center;
+            margin: 2rem 0;
+            position: relative;
+            z-index: 10;
+        }
+        .date-separator span {
+            background-color: #1f2937; /* bg-gray-800 */
+            padding: 0.25rem 1rem;
+            border-radius: 99px; /* rounded-full */
+            color: #9ca3af; /* text-gray-400 */
+            font-weight: bold;
+            border: 1px solid #374151; /* bg-gray-700 */
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-white p-6 sm:p-10 font-sans">
+
+    <div class="max-w-4xl mx-auto">
+
+        <header class="mb-8">
+            <h1 class="text-3xl font-bold text-center text-blue-400 mb-4">Task Chrono</h1>
+            <div class="bg-gray-800 p-4 rounded-lg shadow-lg border border-gray-700">
+                <h2 class="text-sm font-semibold text-gray-400 mb-2">🔥 تمرکز فعلی:</h2>
+                <div id="current-focus" class="min-h-[50px]">
+                    <p class="text-gray-500">هنوز فعالیتی ثبت نشده است.</p>
+                </div>
+            </div>
+        </header>
+
+        <main class="bg-gray-800 p-6 rounded-lg shadow-lg mb-10 border border-gray-700">
+            <h2 class="text-xl font-bold mb-4">ثبت فعالیت جدید</h2>
+            
+            <div class="mb-4">
+                <label for="task-description" class="block mb-2 text-sm font-medium text-gray-300">شرح فعالیت:</label>
+                <textarea id="task-description" rows="3" class="w-full p-2.5 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-blue-500 focus:border-blue-500" placeholder="در حال حاضر مشغول..."></textarea>
+            </div>
+            
+            <div class="mb-4">
+                <label for="task-category" class="block mb-2 text-sm font-medium text-gray-300">دسته‌بندی:</label>
+                <select id="task-category" class="w-full p-2.5 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-blue-500 focus:border-blue-500">
+                    <option value="کار">کار</option>
+                    <option value="یادگیری">یادگیری</option>
+                    <option value="استراحت">استراحت</option>
+                    <option value="متفرقه">متفرقه</option>
+                </select>
+            </div>
+            
+            <button id="log-button" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg transition duration-300 text-lg">
+                ثبت فعالیت
+            </button>
+        </main>
+
+        <section id="history-section">
+            <h2 class="text-2xl font-bold mb-6 text-center">تاریخچه فعالیت‌ها</h2>
+            <div id="history-timeline" class="timeline-container">
+                </div>
+        </section>
+    </div>
+
+    <script>
+        // مدیریت ذخیره‌سازی در localStorage
+        const db = {
+            get: () => {
+                const data = localStorage.getItem('taskChronoLogs');
+                return data ? JSON.parse(data) : [];
+            },
+            save: (logs) => {
+                localStorage.setItem('taskChronoLogs', JSON.stringify(logs));
+            }
+        };
+
+        // آبجکت اصلی برنامه
+        const app = {
+            // state: نگهداری وضعیت فعلی برنامه
+            state: {
+                logs: []
+            },
+
+            // elements: نگهداری ارجاع به عناصر DOM
+            elements: {
+                taskInput: document.getElementById('task-description'),
+                categoryInput: document.getElementById('task-category'),
+                logButton: document.getElementById('log-button'),
+                timeline: document.getElementById('history-timeline'),
+                currentFocus: document.getElementById('current-focus')
+            },
+
+            // init: تابع راه‌اندازی
+            init() {
+                this.state.logs = db.get(); // خواندن داده‌ها از localStorage
+                this.attachListeners();
+                this.render();
+                this.updateCurrentFocus(this.state.logs.length > 0 ? this.state.logs[this.state.logs.length - 1] : null);
+            },
+
+            // attachListeners: مدیریت رویدادها
+            attachListeners() {
+                this.elements.logButton.addEventListener('click', () => this.addLog());
+            },
+
+            // addLog: اضافه کردن یک لاگ جدید
+            addLog() {
+                const description = this.elements.taskInput.value;
+                const category = this.elements.categoryInput.value;
+                
+                if (description.trim() === "") {
+                    alert("لطفاً شرحی برای فعالیت وارد کنید.");
+                    return;
+                }
+
+                const now = new Date();
+                const logEntry = {
+                    id: now.getTime(),
+                    time: now.toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' }),
+                    date: now.toLocaleDateString('fa-IR'), // ذخیره تاریخ
+                    description: description,
+                    category: category
+                };
+
+                this.state.logs.push(logEntry);
+                db.save(this.state.logs); // ذخیره در localStorage
+
+                this.elements.taskInput.value = ""; // پاک کردن ورودی
+                this.render(); // رندر مجدد تایم‌لاین
+                this.updateCurrentFocus(logEntry); // به‌روزرسانی تمرکز فعلی
+            },
+            
+            // updateCurrentFocus: به‌روزرسانی بخش تمرکز فعلی
+            updateCurrentFocus(logEntry) {
+                if (!logEntry) {
+                    this.elements.currentFocus.innerHTML = '<p class="text-gray-500">هنوز فعالیتی ثبت نشده است.</p>';
+                    return;
+                }
+                
+                this.elements.currentFocus.innerHTML = `
+                    <p classG="text-lg text-white">${logEntry.description}</p>
+                    <div class="flex justify-between items-center mt-1">
+                        <span class="text-sm text-blue-400">[${logEntry.time}]</span>
+                        <span class="text-xs bg-gray-700 px-2 py-0.5 rounded-full">${logEntry.category}</span>
+                    </div>
+                `;
+            },
+
+            // render: رندر کردن کل تایم‌لاین
+            render() {
+                this.elements.timeline.innerHTML = ""; // پاک کردن تایم‌لاین
+                
+                if (this.state.logs.length === 0) {
+                     this.elements.timeline.innerHTML = '<p class="text-center text-gray-500">تاریخچه خالی است.</p>';
+                     return;
+                }
+                
+                let lastDate = null; // برای گروه‌بندی بر اساس روز
+
+                // ما لاگ‌ها را برعکس رندر می‌کنیم تا جدیدترین‌ها بالا باشند
+                [...this.state.logs].reverse().forEach(entry => {
+                    // اضافه کردن جداکننده تاریخ
+                    if (entry.date !== lastDate) {
+                        this.elements.timeline.appendChild(this.createDateSeparatorElement(entry.date));
+                        lastDate = entry.date;
+                    }
+                    
+                    // اضافه کردن آیتم لاگ
+                    this.elements.timeline.appendChild(this.createLogElement(entry));
+                });
+            },
+
+            // createLogElement: ساختن HTML برای یک آیتم لاگ (کارت)
+            createLogElement(entry) {
+                const li = document.createElement('div');
+                li.className = 'timeline-item';
+                
+                li.innerHTML = `
+                    <div class="timeline-content">
+                        <div class="flex justify-between items-center mb-2">
+                            <span class="font-bold text-blue-400 text-lg">${entry.time}</span>
+                            <span class="text-sm font-semibold bg-gray-800 px-2 py-0.5 rounded">
+                                ${entry.category}
+                            </span>
+                        </div>
+                        <p class="text-gray-200">${entry.description}</p>
+                    </div>
+                `;
+                return li;
+            },
+
+            // createDateSeparatorElement: ساختن HTML برای جداکننده تاریخ
+            createDateSeparatorElement(date) {
+                const div = document.createElement('div');
+                div.className = 'date-separator';
+                div.innerHTML = `<span>${date}</span>`;
+                return div;
+            }
+        };
+
+        // اجرای برنامه
+        app.init();
+    </script>
+</body>
+</html>
