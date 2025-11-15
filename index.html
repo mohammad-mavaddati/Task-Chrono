@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Task Chrono Infinity V6</title>
+    <title>Task Chrono Infinity V8</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@100;300;400;700;900&display=swap" rel="stylesheet">
@@ -30,7 +30,6 @@
         ::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
         
         .glass-panel { background: rgba(31, 41, 55, 0.8); backdrop-filter: blur(15px); border-bottom: 1px solid rgba(75, 85, 99, 0.6); }
-        .tab-active { border-bottom: 2px solid #3b82f6; color: #60a5fa; }
         
         .recording-pulse { animation: pulse-red 1.5s infinite; }
         @keyframes pulse-red { 
@@ -104,10 +103,9 @@
                 </div>
             </div>
             
-            <!-- Tabs -->
-            <div class="flex text-sm font-medium text-center border-t border-gray-800 text-gray-400">
-                <button onclick="ui.switchTab('timeline')" id="tab-timeline" class="flex-1 p-3 tab-active transition-colors">تایم‌لاین</button>
-                <button onclick="ui.switchTab('stats')" id="tab-stats" class="flex-1 p-3 hover:text-gray-200 transition-colors">خلاصه</button>
+            <!-- Tabs (Removed) -->
+            <div class="flex text-sm font-medium text-center text-gray-400">
+                <div class="flex-1 p-3 text-gray-200 font-bold">تایم‌لاین</div>
             </div>
         </header>
 
@@ -117,14 +115,18 @@
             <!-- Tab: Timeline -->
             <div id="view-timeline" class="p-4 pb-24">
                 
-                <!-- Dynamic Input Area (The Core Fix) -->
+                <!-- Dynamic Input Area -->
                 <div class="recorder-wrapper">
                     
                     <!-- Mode 1: Standard Text Input -->
                     <div id="input-standard" class="flex flex-col gap-3 input-mode visible-mode">
-                        <div class="flex gap-2">
-                            <input type="text" id="task-input" class="flex-1 bg-gray-900 border border-gray-700 rounded-lg px-3 py-2.5 text-sm focus:border-blue-500 outline-none text-white placeholder-gray-500" placeholder="فعالیت جدید...">
-                        </div>
+                        
+                        <!-- UPDATED: Title Input -->
+                        <input type="text" id="task-input" class="flex-1 bg-gray-900 border border-gray-700 rounded-lg px-3 py-2.5 text-sm focus:border-blue-500 outline-none text-white placeholder-gray-500" placeholder="عنوان (الزامی)">
+                        
+                        <!-- NEW: Subject Input for Text -->
+                        <textarea id="subject-input" rows="3" class="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm focus:border-blue-500 outline-none text-white placeholder-gray-500" placeholder="موضوع (اختیاری)"></textarea>
+
                         <div class="flex justify-between items-center">
                             <div class="flex gap-2">
                                 <select id="cat-input" class="bg-gray-900 border border-gray-700 rounded-lg px-2 py-1.5 text-xs text-gray-300 outline-none">
@@ -161,6 +163,8 @@
                         <div id="rec-phase-review" class="hidden flex-col w-full gap-3 py-2">
                             <input type="text" id="rec-title-input" class="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm focus:border-red-500 outline-none text-white placeholder-gray-500 font-bold" placeholder="عنوان یادداشت (الزامی)">
                             
+                            <textarea id="rec-subject-input" rows="3" class="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm focus:border-red-500 outline-none text-white placeholder-gray-500" placeholder="موضوع یادداشت (اختیاری)"></textarea>
+
                             <div class="flex items-center gap-3 bg-gray-900/50 p-2 rounded-lg border border-gray-700">
                                 <button id="preview-play-btn" onclick="recorder.togglePreview()" class="w-10 h-10 flex-shrink-0 rounded-full bg-blue-600 text-white flex items-center justify-center text-sm hover:bg-blue-500 transition-colors">
                                     <i class="fas fa-play"></i>
@@ -200,24 +204,7 @@
                     <p class="text-sm">هنوز فعالیتی ثبت نشده</p>
                 </div>
             </div>
-
-            <!-- Tab: Stats (Only Summary) -->
-            <div id="view-stats" class="hidden p-4">
-                <div class="bg-gray-800/50 rounded-xl p-4 border border-gray-700 mb-4 shadow-lg">
-                    <h3 class="text-sm font-bold text-gray-300 mb-4 border-b border-gray-700 pb-2">خلاصه فعالیت‌ها</h3>
-                    <div id="stats-summary" class="grid grid-cols-2 gap-3">
-                        <div class="bg-gray-900/50 rounded-xl p-3 border border-gray-800 text-center">
-                            <div class="text-gray-400 text-xs mb-1">کل فعالیت‌ها</div>
-                            <div id="stat-total" class="text-2xl font-bold text-white">0</div>
-                        </div>
-                        <div class="bg-gray-900/50 rounded-xl p-3 border border-gray-800 text-center">
-                            <div class="text-gray-400 text-xs mb-1">یادداشت‌های صوتی</div>
-                            <div id="stat-audio" class="text-2xl font-bold text-blue-400">0</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
+            
         </main>
 
         <!-- Core Audio Element (for timeline playback) -->
@@ -232,7 +219,6 @@
         
         const state = {
             logs: JSON.parse(localStorage.getItem('chrono_logs')) || [],
-            currentTab: 'timeline',
             rec: { 
                 instance: null, 
                 chunks: [], 
@@ -288,7 +274,8 @@
                 previewPlayBtn: document.getElementById('preview-play-btn'),
                 previewBar: document.getElementById('preview-bar'),
                 previewTime: document.getElementById('preview-time'),
-                titleInput: document.getElementById('rec-title-input')
+                titleInput: document.getElementById('rec-title-input'),
+                subjectInput: document.getElementById('rec-subject-input')
             },
             
             async initUI() {
@@ -351,6 +338,7 @@
                 }
                 state.rec.previewAudio = new Audio(state.rec.previewUrl);
                 this.els.titleInput.value = 'یادداشت صوتی ' + new Date().toLocaleTimeString('fa-IR');
+                this.els.subjectInput.value = ''; // Clear subject
 
                 const aud = state.rec.previewAudio;
                 
@@ -400,13 +388,15 @@
 
             save() {
                 const title = this.els.titleInput.value.trim();
+                const subject = this.els.subjectInput.value.trim();
+                
                 if (!title) {
                     this.els.titleInput.focus();
                     this.els.titleInput.classList.add('border-red-500');
                     return ui.toast('لطفاً عنوان یادداشت را وارد کنید', 'err');
                 }
                 this.els.titleInput.classList.remove('border-red-500');
-                data.addLog('audio', title);
+                data.addLog('audio', { title, subject });
             },
 
             discard() {
@@ -426,6 +416,8 @@
                 this.els.standard.classList.remove('hidden-mode');
 
                 this.els.timer.innerText = "00:00";
+                this.els.titleInput.value = '';
+                this.els.subjectInput.value = '';
             },
 
             visualize(stream) {
@@ -458,17 +450,30 @@
             }
         };
 
-        // --- Data & Logic ---
+        // --- Data & Logic (UPDATED) ---
         const data = {
-            async addLog(type, audioTitle = null) {
+            async addLog(type, audioData = null) {
                 const cat = document.getElementById('cat-input').value;
-                const input = document.getElementById('task-input');
-                let text = input.value.trim();
+                const input = document.getElementById('task-input'); // Title input for text
+                const subjectInput = document.getElementById('subject-input'); // Subject input for text
+                
+                let text = ''; // This will be the Title
+                let subject = ''; // This will be the Subject
 
                 if (type === 'audio') {
-                    text = audioTitle;
+                    text = audioData.title;
+                    subject = audioData.subject;
                 } else {
-                    if (!text) return ui.toast('متن فعالیت خالی است');
+                    // type === 'text'
+                    text = input.value.trim();
+                    subject = subjectInput.value.trim(); // Get subject from text textarea
+                    
+                    if (!text) {
+                        input.focus();
+                        input.classList.add('border-red-500');
+                        return ui.toast('لطفاً عنوان را وارد کنید', 'err');
+                    }
+                    input.classList.remove('border-red-500');
                 }
                 
                 const id = Date.now();
@@ -476,7 +481,8 @@
                     id,
                     type,
                     cat,
-                    text,
+                    text, // Title
+                    subject, // Subject (can be empty string)
                     time: new Date().toLocaleTimeString('fa-IR', {hour:'2-digit', minute:'2-digit'}),
                     ts: id
                 };
@@ -489,19 +495,25 @@
                 state.logs.unshift(log);
                 this.save();
                 render.list();
+                
+                // Clear text inputs
                 input.value = '';
+                subjectInput.value = ''; // Clear text subject
+                
                 ui.toast('فعالیت ثبت شد');
-                stats.update();
             },
 
             delete(id) {
-                if(!confirm('این فعالیت حذف شود؟')) return;
+                // if(!confirm('این فعالیت حذف شود؟')) return; 
                 const idx = state.logs.findIndex(l => l.id === id);
-                if (state.logs[idx].type === 'audio') idb.delete(id);
+                if (idx === -1) return;
+                
+                if (state.logs[idx].type === 'audio') {
+                    idb.delete(id);
+                }
                 state.logs.splice(idx, 1);
                 this.save();
                 render.list();
-                stats.update();
             },
 
             save() {
@@ -560,7 +572,6 @@
                     
                     data.save();
                     render.list();
-                    stats.update();
                     ui.toast('بازیابی با موفقیت انجام شد');
                 } catch (e) {
                     console.error(e);
@@ -572,16 +583,6 @@
 
         // --- UI & Render ---
         const ui = {
-            switchTab(tab) {
-                state.currentTab = tab;
-                document.querySelectorAll('main > div').forEach(el => el.classList.add('hidden'));
-                document.getElementById(`view-${tab}`).classList.remove('hidden');
-                
-                document.querySelectorAll('header button[onclick^="ui.switch"]').forEach(b => b.classList.remove('tab-active', 'text-blue-400'));
-                document.getElementById(`tab-${tab}`).classList.add('tab-active');
-                
-                if (tab === 'stats') stats.render();
-            },
             toast(msg, type='info') {
                 const t = document.getElementById('toast');
                 document.getElementById('toast-msg').innerText = msg;
@@ -593,11 +594,18 @@
         const render = {
             list() {
                 const container = document.getElementById('logs-list');
-                const filter = document.getElementById('search-box').value.toLowerCase();
+                const filterText = document.getElementById('search-box').value.toLowerCase();
                 container.innerHTML = '';
                 
-                const filtered = state.logs.filter(l => l.text.toLowerCase().includes(filter));
-                if (filtered.length === 0) return document.getElementById('empty-state').classList.remove('hidden');
+                const filtered = state.logs.filter(l => 
+                    l.text.toLowerCase().includes(filterText) || 
+                    (l.subject && l.subject.toLowerCase().includes(filterText))
+                );
+
+                if (filtered.length === 0) {
+                    document.getElementById('empty-state').classList.remove('hidden');
+                    return;
+                }
                 document.getElementById('empty-state').classList.add('hidden');
 
                 const cats = { work: 'bg-blue-500', study: 'bg-purple-500', break: 'bg-green-500', sport: 'bg-orange-500' };
@@ -607,41 +615,58 @@
                     const el = document.createElement('div');
                     el.className = 'bg-gray-800/60 border border-gray-700/50 rounded-xl p-3 relative group hover:bg-gray-800 transition-colors';
                     
+                    // Add click handler if subject exists (and is not empty)
+                    if (log.subject) {
+                        el.setAttribute('onclick', `render.toggleSubject(${log.id})`);
+                        el.classList.add('cursor-pointer');
+                    }
+
                     let playerHtml = '';
                     if (isAudio) {
                         playerHtml = `
                             <div class="mt-2 bg-gray-900/50 rounded-lg p-2 flex items-center gap-2" id="player-${log.id}">
-                                <button onclick="player.play(${log.id})" class="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center text-xs hover:bg-blue-500 transition-colors">
+                                <button onclick="player.play(${log.id}); event.stopPropagation();" class="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center text-xs hover:bg-blue-500 transition-colors flex-shrink-0">
                                     <i class="fas fa-play"></i>
                                 </button>
-                                <div class="flex-1 h-1.5 bg-gray-700 rounded-full overflow-hidden cursor-pointer relative" onclick="player.seek(event, ${log.id})">
-                                    <div classf="h-full bg-blue-500 w-0 transition-all duration-200" id="prog-${log.id}"></div>
+                                <div class="flex-1 h-1.5 bg-gray-700 rounded-full overflow-hidden cursor-pointer relative" onclick="player.seek(event, ${log.id}); event.stopPropagation();">
+                                    <div class="h-full bg-blue-500 w-0 transition-all duration-200" id="prog-${log.id}"></div>
                                 </div>
-                                <button onclick="player.speed(${log.id})" class="text-[10px] font-bold text-gray-500 w-6 hover:text-gray-300" id="spd-${log.id}">1x</button>
+                                <button onclick="player.speed(${log.id}); event.stopPropagation();" class="text-[10px] font-bold text-gray-500 w-6 hover:text-gray-300 flex-shrink-0" id="spd-${log.id}">1x</button>
                             </div>
                         `;
                     }
 
                     el.innerHTML = `
                         <div class="flex justify-between items-start">
-                            <div class="flex items-center gap-3">
-                                <div class="w-1.5 h-8 rounded-full ${cats[log.cat] || 'bg-gray-500'}"></div>
-                                <div>
-                                    <p class="text-gray-200 text-sm font-medium">${log.text}</p>
+                            <div class="flex items-center gap-3 min-w-0"> <!-- for truncation -->
+                                <div class="w-1.5 h-8 rounded-full ${cats[log.cat] || 'bg-gray-500'} flex-shrink-0"></div>
+                                <div class="min-w-0">
+                                    <p class="text-gray-200 text-sm font-medium truncate">${log.text}</p> <!-- Title -->
                                     <div class="flex items-center gap-2 text-[10px] text-gray-500 mt-1">
                                         <span>${log.time}</span>
                                         <span class="bg-gray-700 px-1.5 rounded text-gray-400">${log.cat}</span>
                                     </div>
                                 </div>
                             </div>
-                            <button onclick="data.delete(${log.id})" class="text-gray-600 hover:text-red-500 transition-colors p-1">
+                            <button onclick="data.delete(${log.id}); event.stopPropagation();" class="text-gray-600 hover:text-red-500 transition-colors p-1 flex-shrink-0 z-10 relative">
                                 <i class="fas fa-trash"></i>
                             </button>
                         </div>
+                        
+                        <!-- Subject (hidden by default) -->
+                        ${log.subject ? `<p id="subject-${log.id}" class="text-gray-400 text-sm mt-2 pt-2 border-t border-gray-700/50 hidden whitespace-pre-wrap break-words">${log.subject}</p>` : ''}
+                        
                         ${playerHtml}
                     `;
                     container.appendChild(el);
                 });
+            },
+
+            toggleSubject(id) {
+                const subjectEl = document.getElementById(`subject-${id}`);
+                if (subjectEl) {
+                    subjectEl.classList.toggle('hidden');
+                }
             }
         };
 
@@ -653,6 +678,7 @@
             
             async play(id) {
                 const btn = document.querySelector(`#player-${id} button i`);
+                if (!btn) return;
                 
                 if (this.currentId === id && !this.audio.paused) {
                     this.audio.pause();
@@ -672,24 +698,33 @@
                 
                 this.audio.pause();
                 this.audio.src = '';
-                this.audio.load();
                 
                 this.audio.src = URL.createObjectURL(blob);
                 this.audio.playbackRate = this.speedVal;
                 this.currentId = id;
                 
-                btn.className = 'fas fa-pause';
-                this.audio.play();
+                try {
+                    await this.audio.play();
+                    btn.className = 'fas fa-pause';
+                } catch (err) {
+                    console.error("Audio play failed:", err);
+                    btn.className = 'fas fa-play';
+                }
 
                 this.audio.ontimeupdate = () => {
+                    if (this.currentId !== id) return;
                     const pct = (this.audio.currentTime / this.audio.duration) * 100;
                     const bar = document.getElementById(`prog-${id}`);
                     if (bar) bar.style.width = `${pct}%`;
                 };
                 
                 this.audio.onended = () => {
-                    btn.className = 'fas fa-play';
-                    document.getElementById(`prog-${id}`).style.width = '0%';
+                    if (this.currentId === id) {
+                        btn.className = 'fas fa-play';
+                        const bar = document.getElementById(`prog-${id}`);
+                        if (bar) bar.style.width = '0%';
+                        this.currentId = null;
+                    }
                 };
             },
             
@@ -699,12 +734,15 @@
                 const clickX = event.clientX - rect.left;
                 const pct = clickX / rect.width;
                 
-                if (id === this.currentId) {
+                if (id === this.currentId && !this.audio.paused) {
                     this.audio.currentTime = this.audio.duration * pct;
                 } else {
                     this.play(id).then(() => {
-                        this.audio.currentTime = this.audio.duration * pct;
+                        if(this.audio.duration) {
+                            this.audio.currentTime = this.audio.duration * pct;
+                        }
                         this.audio.pause();
+                        document.querySelector(`#player-${id} button i`).className = 'fas fa-play';
                     });
                 }
             },
@@ -713,18 +751,13 @@
                 const speeds = [1, 1.5, 2];
                 let idx = speeds.indexOf(this.speedVal);
                 this.speedVal = speeds[(idx + 1) % speeds.length];
-                document.getElementById(`spd-${id}`).innerText = this.speedVal + 'x';
+                
+                document.querySelectorAll('button[id^="spd-"]').forEach(btn => {
+                    btn.innerText = this.speedVal + 'x';
+                });
+                
                 this.audio.playbackRate = this.speedVal;
             }
-        };
-
-        // --- Statistics (Simplified) ---
-        const stats = {
-            update() {
-                 document.getElementById('stat-total').innerText = state.logs.length;
-                 document.getElementById('stat-audio').innerText = state.logs.filter(l=>l.type==='audio').length;
-            },
-             render() { this.update(); }
         };
 
         // --- Init ---
@@ -732,10 +765,10 @@
             await idb.init();
             document.getElementById('search-box').addEventListener('input', render.list);
             render.list();
-            stats.update();
         });
 
     </script>
 </body>
 </html>
+
 
