@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Task Chrono Pro | Photo Edition</title>
+    <title>Task Chrono Pro | Secure Edition</title>
     
     <link href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css" rel="stylesheet" type="text/css" />
     <script src="https://cdn.tailwindcss.com"></script>
@@ -234,20 +234,20 @@
     <header class="glass-panel sticky top-0 z-40 px-6 py-4 flex items-center justify-between mb-8 shadow-glass border-b-0 rounded-b-3xl mx-2 mt-2">
         <div class="flex items-center gap-4">
             <div class="w-11 h-11 rounded-xl bg-gradient-to-br from-primary to-indigo-600 flex items-center justify-center text-white shadow-neon ring-1 ring-white/10">
-                <i class="ph-bold ph-hourglass-high text-2xl"></i>
+                <i class="ph-bold ph-shield-check text-2xl"></i>
             </div>
             <div>
                 <h1 class="text-xl font-black bg-clip-text text-transparent bg-gradient-to-r from-white via-slate-200 to-slate-400">Task Chrono</h1>
-                <p class="text-[10px] text-slate-400 font-medium tracking-wider uppercase">Pro Edition</p>
+                <p class="text-[10px] text-emerald-400 font-medium tracking-wider uppercase">Secure Edition</p>
             </div>
         </div>
         <div class="flex gap-2">
-            <input type="file" id="importInput" accept=".zip" class="hidden">
-            <button onclick="document.getElementById('importInput').click()" class="w-10 h-10 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 transition flex items-center justify-center group border border-white/5" title="بازیابی">
+            <input type="file" id="importInput" accept=".zip,.tcsafe" class="hidden">
+            <button onclick="document.getElementById('importInput').click()" class="w-10 h-10 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 transition flex items-center justify-center group border border-white/5" title="بازیابی امن">
                 <i class="ph-bold ph-download-simple text-xl group-hover:text-white"></i>
             </button>
-            <button onclick="app.exportData()" class="w-10 h-10 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 transition flex items-center justify-center group border border-white/5" title="پشتیبان‌گیری">
-                <i class="ph-bold ph-upload-simple text-xl group-hover:text-white"></i>
+            <button onclick="app.exportData()" class="w-10 h-10 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 transition flex items-center justify-center group border border-white/5" title="پشتیبان‌گیری رمزنگاری شده">
+                <i class="ph-bold ph-lock-key text-xl group-hover:text-white"></i>
             </button>
         </div>
     </header>
@@ -394,6 +394,62 @@
     <audio id="globalAudioPlayer"></audio>
 
     <script>
+        // --- 0. Crypto Service (Security Layer) ---
+        const CryptoService = {
+            algo: { name: 'AES-GCM', length: 256 },
+            pbkdf2: { name: 'PBKDF2', hash: 'SHA-256', iterations: 100000 },
+
+            strToBuf(str) { return new TextEncoder().encode(str); },
+
+            async deriveKey(password, salt) {
+                const keyMaterial = await window.crypto.subtle.importKey(
+                    'raw', this.strToBuf(password), { name: 'PBKDF2' }, false, ['deriveKey']
+                );
+                return window.crypto.subtle.deriveKey(
+                    { ...this.pbkdf2, salt: salt },
+                    keyMaterial,
+                    this.algo,
+                    false,
+                    ['encrypt', 'decrypt']
+                );
+            },
+
+            async encrypt(dataBuffer, password) {
+                const salt = window.crypto.getRandomValues(new Uint8Array(16));
+                const iv = window.crypto.getRandomValues(new Uint8Array(12));
+                const key = await this.deriveKey(password, salt);
+
+                const encryptedContent = await window.crypto.subtle.encrypt(
+                    { ...this.algo, iv: iv },
+                    key,
+                    dataBuffer
+                );
+
+                const combined = new Uint8Array(salt.length + iv.length + encryptedContent.byteLength);
+                combined.set(salt, 0);
+                combined.set(iv, salt.length);
+                combined.set(new Uint8Array(encryptedContent), salt.length + iv.length);
+                return combined;
+            },
+
+            async decrypt(combinedBuffer, password) {
+                try {
+                    const salt = combinedBuffer.slice(0, 16);
+                    const iv = combinedBuffer.slice(16, 28);
+                    const data = combinedBuffer.slice(28);
+                    const key = await this.deriveKey(password, salt);
+
+                    return await window.crypto.subtle.decrypt(
+                        { ...this.algo, iv: iv },
+                        key,
+                        data
+                    );
+                } catch (e) {
+                    throw new Error('FAILED');
+                }
+            }
+        };
+
         // --- 1. DB Layer ---
         const DB_CONFIG = { name: 'TaskChronoDB_V4', version: 1, store: 'mediaFiles' };
         const db = {
@@ -1112,34 +1168,74 @@
                 setTimeout(() => t.classList.add('opacity-0', 'translate-y-[-20px]'), 3000);
             },
 
+            // --- SECURE EXPORT & IMPORT ---
             async exportData() {
                 try {
+                    const password = prompt("برای محافظت از فایل، یک رمز عبور وارد کنید:");
+                    if (!password) return this.showToast('پشتیبان‌گیری لغو شد', 'error');
+
+                    this.showToast('در حال رمزنگاری...');
+
                     const zip = new JSZip();
                     const logs = JSON.parse(localStorage.getItem('taskLogs') || '[]');
                     zip.file("data.json", JSON.stringify(logs));
                     const folder = zip.folder("media");
+                    
                     await Promise.all(logs.filter(l=>l.hasMedia).map(async l => {
                         const b = await db.getFile(l.id);
                         let ext = 'webm';
                         if(l.type === 'photo') ext = 'jpeg';
                         else if(l.type === 'video') ext = 'webm';
-                        
                         if(b) folder.file(`${l.id}.${ext}`, b);
                     }));
-                    const c = await zip.generateAsync({type:"blob"});
-                    const a = document.createElement('a'); a.href = URL.createObjectURL(c); a.download = 'TaskChrono_Backup.zip'; a.click();
-                    this.showToast('پشتیبان‌گیری انجام شد');
-                } catch { this.showToast('خطا در پشتیبان‌گیری', 'error'); }
+
+                    const zipBlob = await zip.generateAsync({type:"uint8array"});
+                    const encryptedData = await CryptoService.encrypt(zipBlob, password);
+
+                    const blob = new Blob([encryptedData], { type: 'application/octet-stream' });
+                    const a = document.createElement('a');
+                    a.href = URL.createObjectURL(blob);
+                    a.download = `TaskChrono_${new Date().toISOString().slice(0,10)}.tcsafe`;
+                    a.click();
+                    
+                    this.showToast('پشتیبان‌گیری امن انجام شد');
+                } catch(e) { 
+                    console.error(e);
+                    this.showToast('خطا در رمزنگاری فایل', 'error'); 
+                }
             },
+
             async handleImport(e) {
                 const f = e.target.files[0]; if(!f) return;
+                const inputEl = e.target;
+
                 try {
-                    const zip = await new JSZip().loadAsync(f);
-                    const dataFile = zip.file("data.json");
-                    if (!dataFile) {
-                        this.showToast('فایل پشتیبان معتبر نیست', 'error');
-                        return;
+                    // Check extension
+                    const isLegacy = f.name.endsWith('.zip');
+                    let zipData;
+
+                    if (isLegacy) {
+                        zipData = f; // Pass original file for legacy zip
+                        this.showToast('در حال بارگذاری فایل قدیمی...');
+                    } else {
+                        const password = prompt("رمز عبور فایل پشتیبان را وارد کنید:");
+                        if (!password) { inputEl.value = ''; return this.showToast('بازیابی لغو شد', 'error'); }
+                        
+                        this.showToast('در حال رمزگشایی...');
+                        const arrayBuffer = await f.arrayBuffer();
+                        const ui8 = new Uint8Array(arrayBuffer);
+                        try {
+                            zipData = await CryptoService.decrypt(ui8, password);
+                        } catch(err) {
+                            inputEl.value = '';
+                            return this.showToast('رمز عبور اشتباه است!', 'error');
+                        }
                     }
+
+                    const zip = await new JSZip().loadAsync(zipData);
+                    const dataFile = zip.file("data.json");
+                    if (!dataFile) throw new Error("Invalid");
+
                     const data = JSON.parse(await dataFile.async("string"));
                     localStorage.setItem('taskLogs', JSON.stringify(data));
                     const media = zip.folder("media");
@@ -1152,9 +1248,10 @@
                     console.error("Import Error:", e);
                     this.showToast('خطا در بازیابی فایل', 'error'); 
                 } finally {
-                     e.target.value = ''; 
+                     inputEl.value = ''; 
                 }
             },
+            
             fmtTime(s) {
                 if(!s || isNaN(s)) return '00:00';
                 const m = Math.floor(s/60);
